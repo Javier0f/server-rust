@@ -1,0 +1,62 @@
+// async fn saturar(ws: &mut WebSocket){
+//     let mut count =0;
+
+//     loop {
+//         count += 1;
+
+//         if ws.send(Message::Text(count.to_string().into())).await.is_err(){
+//             eprintln!("el envio salio mal");
+//             return ;
+//         }
+
+//         if count > 100000{
+//             break;
+//             println!("finalizado la transmision");
+//         }
+//     }
+// }
+
+// async fn conectar(mut socket: WebSocket){
+
+//     while let Some(msg) = socket.recv().await {
+//         match msg {
+//             Ok(Message::Text(texto)) => saturar(&mut socket).await,
+//             Ok(Message::Close(data)) => {println!("{:?}", data); return;},
+//             _ => {eprintln!("algo llego")},
+//         }
+//     }
+    
+// }
+
+// async fn guardar(ws: WebSocket){
+//     let cliente = lib::Client::new(ws);
+// }
+
+// async fn connect(ws: WebSocketUpgrade) -> Response {
+//     ws.on_upgrade(conectar)
+// }
+
+
+peer.rs
+
+pub async fn create_offer(pc: &RTCPeerConnection) -> String{
+    let offer = pc.create_offer(None).await.unwrap();
+    pc.set_local_description(offer).await.unwrap();
+
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    let local_desc = pc.local_description().await.unwrap();
+    let sdp = serde_json::to_string(&local_desc).unwrap();
+
+    sdp
+}
+
+pub async fn save_answer(pc: &RTCPeerConnection, answer: String){
+    let answer: RTCSessionDescription = serde_json::from_str(&answer).unwrap();
+
+    println!("{}", answer.sdp);
+
+    if let Err(e) = pc.set_remote_description(answer).await{
+        eprintln!("{e}");
+    }
+}

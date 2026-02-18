@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- <link rel="stylesheet" href="./index.css"> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h3>HTML servido desde un servidor de Rust</h3>
+    <input type="button" value="connect" onclick="connect()">
+    <br>
+    <p id="data"></p>
+</body>
+<script>
+    let info = document.getElementById("data");
+
+    const pc = new RTCPeerConnection();
+
+    pc.onconnectionstatechange = event =>{
+        console.log(pc.connectionState)
+    }
+
+    let channel = pc.createDataChannel("data",{
+        ordered: false,
+        negotiated: false
+    });
+
+    channel.onopen = ()=>{
+        console.log("canal abierto");
+        channel.onmessage = () =>{
+            console.log("mensage")
+        }
+    }
+
+    async function offer() {
+        let offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+
+        return new Promise(res => {
+            if(pc.iceGatheringState == "complete"){
+                res(pc.localDescription)
+            }else{
+                pc.onicegatheringstatechange = ()=>{
+                    console.log(pc.iceGatheringState)
+                    if(pc.iceGatheringState == "complete"){
+                        res(pc.localDescription)
+                    }
+                }
+            }
+        })
+    }
+
+    function connect(){
+        let socket = new WebSocket("ws://192.168.100.16:3000/connect");
+
+        console.log(socket.url)
+
+        socket.onopen = async ()=>{
+            info.innerHTML = socket.readyState;
+
+            offer()
+                .then(data => socket.send(JSON.stringify(data)))
+        }
+
+        socket.onmessage = async event => {
+            let data = JSON.parse(event.data)
+
+            pc.setRemoteDescription(data)
+        }
+
+        info.innerHTML = socket.readyState;   
+    }
+
+</script>
+</html>
