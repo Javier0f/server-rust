@@ -16,35 +16,35 @@
     let info = document.getElementById("data");
 
     const pc = new RTCPeerConnection();
+    peer_states(pc);
 
-    pc.onconnectionstatechange = event =>{
-        console.log(pc.connectionState)
-    }
+    function peer_states(pc = new RTCPeerConnection){
+        pc.onconnectionstatechange = ()=>{
+            console.log("peer: ",pc.connectionState)
+        }
 
-    let channel = pc.createDataChannel("data",{
-        ordered: false,
-        negotiated: false
-    });
-
-    channel.onopen = ()=>{
-        console.log("canal abierto");
-        channel.onmessage = () =>{
-            console.log("mensage")
+        pc.onicegatheringstatechange = event =>{
+            console.log(pc.iceGatheringState)
         }
     }
 
-    async function offer() {
-        let offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
+    async function connect_peers(pc = new RTCPeerConnection, offer ){
+        await pc.setRemoteDescription(offer);
+        let answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
 
-        return new Promise(res => {
-            if(pc.iceGatheringState == "complete"){
-                res(pc.localDescription)
+        // console.log(pc.localDescription)
+
+        return new Promise((res,rej)=>{
+            if(pc.iceGatheringState =="complete"){
+                let answer_sdp = JSON.stringify(pc.localDescription)
+                res(answer_sdp)
             }else{
                 pc.onicegatheringstatechange = ()=>{
-                    console.log(pc.iceGatheringState)
-                    if(pc.iceGatheringState == "complete"){
-                        res(pc.localDescription)
+                    console.log(pc.iceGatheringState);
+                    if (pc.iceGatheringState =="complete"){
+                        let answer_sdp = JSON.stringify(pc.localDescription);
+                        res(answer_sdp)
                     }
                 }
             }
@@ -52,21 +52,27 @@
     }
 
     function connect(){
-        let socket = new WebSocket("ws://192.168.100.16:3000/connect");
+        let socket = new WebSocket("ws://192.168.1.41:3000/connect");
 
-        console.log(socket.url)
+        socket.onclose = ()=>{
+            console.log("socket cerrado")
+        }
 
-        socket.onopen = async ()=>{
-            info.innerHTML = socket.readyState;
-
-            offer()
-                .then(data => socket.send(JSON.stringify(data)))
+        socket.onopen = ()=>{
+            info.innerHTML = socket.readyState + " " + socket.url;
         }
 
         socket.onmessage = async event => {
             let data = JSON.parse(event.data)
 
-            pc.setRemoteDescription(data)
+            if (data.type === "offer"){
+                connect_peers(pc, data)
+                    .then(answer => {
+                        socket.send(answer)
+                    })
+            }
+            
+            // console.log(data.sdp)
         }
 
         info.innerHTML = socket.readyState;   

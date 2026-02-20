@@ -3,17 +3,19 @@ use axum::Extension;
 use axum::extract::ws::Message;
 use axum::extract::ws::{WebSocket};
 
-mod peer;
-use peer::{crear_api, create_peer_connection, connect_peers};
+// mod peer;
+// use peer::{crear_api, create_peer_connection, connect_peers};
 
+mod peers_conector;
+use peers_conector::{create_api, rtc_peer_connection, connect_peers};
 
 //Acepta la conexión por web socket y actualiza el estado del servidor
 //Cuando ese cliente salga, lo devuelve FALSE para aceptar el proximo cliente
 pub async fn aceptar(socket: WebSocket, Extension(estado): Extension<Arc<State>>){
     estado.in_use();
 
-    let api = crear_api().await;
-    let pc = create_peer_connection(&api).await;
+    let api = create_api().await;
+    let pc = rtc_peer_connection(&api).await;
 
     println!("cliente conectado por web socket");
 
